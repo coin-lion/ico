@@ -255,6 +255,35 @@ contract PreICOProxyBuyer is Ownable, Haltable {
   }
 
   /**
+   * Claim all (remaining) tokens by proxy (as owner) for investor (address)
+   *
+   */
+  function claimAllByProxy(address investor) stopInEmergency onlyOwner {
+    require (now > timeLock);
+
+    if(address(investor) == 0) {
+      throw;
+    }
+
+    uint amount = getClaimLeft(investor);
+    if(amount < 0) {
+      // Woops we cannot get more than we have left
+      throw;
+    }
+
+    // We track who many investor have (partially) claimed their tokens
+    if(claimed[investor] == 0) {
+      claimCount++;
+    }
+
+    claimed[investor] = claimed[investor].add(amount);
+    totalClaimed = totalClaimed.add(amount);
+    getToken().transfer(investor, amount);
+
+    Distributed(investor, amount);
+  }
+
+  /**
    * ICO never happened. Allow refund.
    */
   function refund() stopInEmergency {
@@ -324,6 +353,6 @@ contract PreICOProxyBuyer is Ownable, Haltable {
 
   /** Explicitly call function from your wallet. */
   function() payable {
-    throw;
+    buy();
   }
 }

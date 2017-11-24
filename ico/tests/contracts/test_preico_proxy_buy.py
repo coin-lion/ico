@@ -161,6 +161,55 @@ def test_proxy_buy(chain, web3, customer, customer_2, team_multisig, proxy_buyer
     assert token.call().balanceOf(customer_2) == 36000000/3*2
 
 
+def test_proxy_buy_claim_proxy(chain, web3, customer, customer_2, team_multisig, proxy_buyer, crowdsale, token):
+    """Buy proxy as customer."""
+    proxy_buyer.transact({"value": to_wei(10000, "ether"), "from": customer}).buy()
+    proxy_buyer.transact({"value": to_wei(20000, "ether"), "from": customer_2}).buy()
+
+    # Everything funder
+    assert proxy_buyer.call().weiRaised() == to_wei(30000, "ether")
+    assert web3.eth.getBalance(proxy_buyer.address) == to_wei(30000, "ether")
+    assert proxy_buyer.call().balances(customer) == to_wei(10000, "ether")
+    assert proxy_buyer.call().balances(customer_2) == to_wei(20000, "ether")
+
+    # Move over
+    assert crowdsale.call().getState() == CrowdsaleState.Funding
+    proxy_buyer.transact({"from": team_multisig}).setCrowdsale(crowdsale.address)
+    assert proxy_buyer.call().crowdsale() == crowdsale.address
+    proxy_buyer.transact({"from": team_multisig}).buyForEverybody()
+    assert web3.eth.getBalance(proxy_buyer.address) == 0
+
+    # We got our tokens
+    assert proxy_buyer.call().getState() == 2
+    assert proxy_buyer.call().tokensBought() == 36000000
+    assert proxy_buyer.call().getClaimAmount(customer) == 36000000/3*1
+    assert proxy_buyer.call().getClaimLeft(customer) == 36000000/3*1
+    assert proxy_buyer.call().getClaimAmount(customer_2) == 36000000/3*2
+    assert proxy_buyer.call().getClaimLeft(customer_2) == 36000000/3*2
+
+    # Tokens cannot be claimed before they are released
+    time_travel(chain, crowdsale.call().endsAt()+1)
+    crowdsale.transact({"from": team_multisig}).finalize()
+    assert token.call().released()
+
+    # Don't allow non-owner to claim by proxy
+    with pytest.raises(TransactionFailed):
+        proxy_buyer.transact({"from": customer}).claimAllByProxy(customer)
+        proxy_buyer.transact({"from": customer_2}).claimAllByProxy(customer_2)
+
+    # Claim tokens by Proxy
+    proxy_buyer.transact({"from": team_multisig}).claimAllByProxy(customer)
+    proxy_buyer.transact({"from": team_multisig}).claimAllByProxy(customer_2)
+
+    # Check investors got their tokens
+    assert proxy_buyer.call().totalClaimed() == 36000000
+    assert proxy_buyer.call().claimCount() == 2
+    assert proxy_buyer.call().claimed(customer) == 36000000 / 3 * 1
+    assert proxy_buyer.call().claimed(customer_2) == 36000000 / 3 * 2
+    assert token.call().balanceOf(customer) == 36000000/3*1
+    assert token.call().balanceOf(customer_2) == 36000000/3*2
+
+
 def test_proxy_buy_with_id(chain, web3, customer, customer_2, team_multisig, proxy_buyer, crowdsale, token):
     """Buy proxy as a customer we can link to a database entry."""
 

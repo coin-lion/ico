@@ -133,6 +133,13 @@ contract Crowdsale is CrowdsaleBase {
   }
 
   /**
+   * Don't expect to just send in money and get tokens.
+   */
+  function() payable {
+    buy();
+  }
+
+  /**
    * Set policy do we need to have server-side customer ids for the investments.
    *
    */

@@ -56,6 +56,8 @@ def verify_contract(project: Project, chain_name: str, address: str, contract_na
     with Browser(driver_name=browser_driver) as browser:
         browser.visit(url)
 
+        browser.is_text_present("Verify and Publish your Solidity Source Code", wait_time=15)
+
         browser.fill("ctl00$ContentPlaceHolder1$txtContractAddress", address)
         browser.fill("ctl00$ContentPlaceHolder1$txtContractName", contract_name)
         browser.select("ctl00$ContentPlaceHolder1$ddlCompilerVersions", compiler)
